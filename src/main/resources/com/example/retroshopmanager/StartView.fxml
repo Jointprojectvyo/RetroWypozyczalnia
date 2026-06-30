@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox spacing="18.0" style="-fx-background-color: #f5f7fb;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+    <padding>
+        <Insets bottom="24.0" left="24.0" right="24.0" top="24.0" />
+    </padding>
+    <children>
+        <VBox spacing="10.0" style="-fx-background-color: linear-gradient(to right, #ffffff, #eef4fb); -fx-background-radius: 8; -fx-border-color: #dce3ee; -fx-border-radius: 8;">
+            <padding>
+                <Insets bottom="26.0" left="28.0" right="28.0" top="26.0" />
+            </padding>
+            <children>
+                <Label style="-fx-text-fill: #13253a; -fx-font-size: 30; -fx-font-weight: bold;" text="RetroWypożyczalnia" />
+                <Label maxWidth="760.0" wrapText="true" style="-fx-text-fill: #53647a; -fx-font-size: 14;" text="Aplikacja dla pracowników wypożyczalni fizycznych nośników. System pomaga zarządzać asortymentem, bazą klientów oraz dziennikiem wypożyczeń w jednym miejscu." />
+            </children>
+        </VBox>
+        <GridPane hgap="14.0" vgap="14.0">
+            <children>
+                <VBox prefHeight="145.0" prefWidth="280.0" spacing="8.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dce3ee; -fx-border-radius: 8;" GridPane.columnIndex="0" GridPane.rowIndex="0">
+                    <padding>
+                        <Insets bottom="18.0" left="18.0" right="18.0" top="18.0" />
+                    </padding>
+                    <children>
+                        <Label style="-fx-text-fill: #4f61d8; -fx-font-size: 24; -fx-font-weight: bold;" text="01" />
+                        <Label style="-fx-text-fill: #13253a; -fx-font-size: 16; -fx-font-weight: bold;" text="Wybierz moduł" />
+                        <Label wrapText="true" style="-fx-text-fill: #66758a; -fx-font-size: 12;" text="Menu po lewej stronie prowadzi do muzyki, filmów, książek, klientów i dziennika wypożyczeń." />
+                    </children>
+                </VBox>
+                <VBox prefHeight="145.0" prefWidth="280.0" spacing="8.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dce3ee; -fx-border-radius: 8;" GridPane.columnIndex="1" GridPane.rowIndex="0">
+                    <padding>
+                        <Insets bottom="18.0" left="18.0" right="18.0" top="18.0" />
+                    </padding>
+                    <children>
+                        <Label style="-fx-text-fill: #1b7f5f; -fx-font-size: 24; -fx-font-weight: bold;" text="02" />
+                        <Label style="-fx-text-fill: #13253a; -fx-font-size: 16; -fx-font-weight: bold;" text="Zarządzaj danymi" />
+                        <Label wrapText="true" style="-fx-text-fill: #66758a; -fx-font-size: 12;" text="W tabelach możesz dodawać, edytować i usuwać pozycje. Zmiany są zapisywane w bazie SQLite." />
+                    </children>
+                </VBox>
+                <VBox prefHeight="145.0" prefWidth="280.0" spacing="8.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dce3ee; -fx-border-radius: 8;" GridPane.columnIndex="2" GridPane.rowIndex="0">
+                    <padding>
+                        <Insets bottom="18.0" left="18.0" right="18.0" top="18.0" />
+                    </padding>
+                    <children>
+                        <Label style="-fx-text-fill: #c18418; -fx-font-size: 24; -fx-font-weight: bold;" text="03" />
+                        <Label style="-fx-text-fill: #13253a; -fx-font-size: 16; -fx-font-weight: bold;" text="Obsługuj wypożyczenia" />
+                        <Label wrapText="true" style="-fx-text-fill: #66758a; -fx-font-size: 12;" text="Dziennik łączy klienta z towarem, kontroluje dostępność i nalicza karę za spóźniony zwrot." />
+                    </children>
+                </VBox>
+            </children>
+        </GridPane>
+        <HBox spacing="14.0">
+            <children>
+                <VBox prefWidth="430.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dce3ee; -fx-border-radius: 8;">
+                    <padding>
+                        <Insets bottom="18.0" left="18.0" right="18.0" top="18.0" />
+                    </padding>
+                    <children>
+                        <Label style="-fx-text-fill: #13253a; -fx-font-size: 16; -fx-font-weight: bold;" text="Najważniejsze zasady pracy" />
+                        <Label wrapText="true" style="-fx-text-fill: #53647a; -fx-font-size: 13;" text="Przed wypożyczeniem upewnij się, że klient istnieje w bazie. Przy zwrocie wybierz aktywne wypożyczenie z tabeli i użyj przycisku „Zwrot”. System automatycznie zapisze datę zwrotu oraz wyliczy ewentualną karę." />
+                    </children>
+                </VBox>
+                <VBox prefWidth="430.0" spacing="10.0" style="-fx-background-color: white; -fx-background-radius: 8; -fx-border-color: #dce3ee; -fx-border-radius: 8;">
+                    <padding>
+                        <Insets bottom="18.0" left="18.0" right="18.0" top="18.0" />
+                    </padding>
+                    <children>
+                        <Label style="-fx-text-fill: #13253a; -fx-font-size: 16; -fx-font-weight: bold;" text="Dostępne sekcje" />
+                        <Label wrapText="true" style="-fx-text-fill: #53647a; -fx-font-size: 13;" text="Muzyka i książki korzystają z istniejących okien projektu. Filmy, klienci i dziennik wypożyczeń są osobnymi stronami służącymi do codziennej obsługi wypożyczalni." />
+                    </children>
+                </VBox>
+            </children>
+        </HBox>
+        <Region VBox.vgrow="ALWAYS" />
+    </children>
+</VBox>
