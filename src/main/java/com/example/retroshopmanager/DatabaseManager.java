@@ -65,6 +65,8 @@ public class DatabaseManager {
                     "FOREIGN KEY(customer_id) REFERENCES customers(id)" +
                     ");";
             stmt.execute(createRentalsTable);
+
+
         } catch (SQLException e) {
             e.printStackTrace();
         }

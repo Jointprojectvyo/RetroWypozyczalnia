@@ -6,6 +6,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 
+import java.sql.*;
 import java.util.Optional;
 
 public class MusicController {
@@ -16,10 +17,8 @@ public class MusicController {
     @FXML private TableColumn<MusicItem, String> artistColumn;
     @FXML private TableColumn<MusicItem, Integer> yearColumn;
 
-    // Lista przechowująca płyty w pamięci (zgodnie z założeniami projektu)
-    private ObservableList<MusicItem> musicList;
-    // Zmienna do symulowania ID bazy danych
-    private int nextId = 4;
+    // Lista przechowująca płyty – teraz synchronizowana z bazą danych
+    private ObservableList<MusicItem> musicList = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
@@ -29,14 +28,66 @@ public class MusicController {
         artistColumn.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("artist"));
         yearColumn.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("releaseYear"));
 
-        // Przykładowe dane startowe
-        musicList = FXCollections.observableArrayList(
-                new MusicItem(1, "The Dark Side of the Moon", "Pink Floyd", 1973),
-                new MusicItem(2, "Abbey Road", "The Beatles", 1969),
-                new MusicItem(3, "Rumours", "Fleetwood Mac", 1977)
-        );
+        // Ładowanie danych z bazy danych SQLite zamiast sztywno wpisanych linii
+        loadMusicFromDatabase();
 
         musicTable.setItems(musicList);
+    }
+
+    /**
+     * Pobiera wszystkie rekordy z tabeli 'music' i zapisuje je w pamięci RAM (musicList).
+     */
+    private void loadMusicFromDatabase() {
+        musicList.clear();
+        String sql = "SELECT * FROM music";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                musicList.add(new MusicItem(
+                        rs.getInt("id"),
+                        rs.getString("title"),
+                        rs.getString("artist"),
+                        rs.getInt("release_year")
+                ));
+            }
+
+            // Jeśli baza danych jest całkowicie pusta, wstawiamy domyślne dane startowe
+            if (musicList.isEmpty()) {
+                insertDefaultMusic();
+                loadMusicFromDatabase();
+            }
+        } catch (SQLException e) {
+            Alert alert = new Alert(Alert.AlertType.ERROR, "Błąd: Nie udało się pobrać muzyki z bazy danych!");
+            alert.showAndWait();
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Zasila bazę danych domyślnymi rekordami muzycznymi przy pierwszym uruchomieniu.
+     */
+    private void insertDefaultMusic() {
+        String sql = "INSERT INTO music(title, artist, release_year) VALUES(?,?,?)";
+        String[][] defaultAlbums = {
+                {"The Dark Side of the Moon", "Pink Floyd", "1973"},
+                {"Abbey Road", "The Beatles", "1969"},
+                {"Rumours", "Fleetwood Mac", "1977"}
+        };
+
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            for (String[] album : defaultAlbums) {
+                pstmt.setString(1, album[0]);
+                pstmt.setString(2, album[1]);
+                pstmt.setInt(3, Integer.parseInt(album[2]));
+                pstmt.executeUpdate();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
@@ -72,8 +123,20 @@ public class MusicController {
 
             Optional<ButtonType> result = alert.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
-                // Usuwamy z pamięci (w przyszłości tu dacie zapytanie SQL DELETE)
-                musicList.remove(selectedItem);
+                // Usuwanie pozycji bezpośrednio z bazy danych przy użyciu SQL DELETE
+                String sql = "DELETE FROM music WHERE id = ?";
+                try (Connection conn = DatabaseManager.getConnection();
+                     PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setInt(1, selectedItem.getId());
+                    pstmt.executeUpdate();
+
+                    // Usuwamy z pamięci podręcznej UI
+                    musicList.remove(selectedItem);
+                } catch (SQLException e) {
+                    Alert errorAlert = new Alert(Alert.AlertType.ERROR, "Błąd: Nie udało się usunąć pozycji z bazy danych.");
+                    errorAlert.showAndWait();
+                    e.printStackTrace();
+                }
             }
         } else {
             Alert alert = new Alert(Alert.AlertType.WARNING, "Proszę zaznaczyć płytę do usunięcia.");
@@ -120,18 +183,61 @@ public class MusicController {
 
         dialog.getDialogPane().setContent(grid);
 
-        // Konwersja kliknięcia "Zapisz" na nowy obiekt MusicItem
+        // Konwersja kliknięcia "Zapisz" na operację bazodanową i walidacja danych
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
                 try {
+                    // OBSŁUGA WYJĄTKÓW / WALIDACJA: Sprawdzenie pustych pól tekstowych
+                    if (titleField.getText().trim().isEmpty() ||
+                            artistField.getText().trim().isEmpty() ||
+                            yearField.getText().trim().isEmpty()) {
+
+                        Alert emptyAlert = new Alert(Alert.AlertType.ERROR, "Błąd: Wszystkie pola muszą być wypełnione!");
+                        emptyAlert.setHeaderText("Błąd walidacji");
+                        emptyAlert.showAndWait();
+                        return null; // Zwrócenie null przerywa proces i nie zamyka okna modalnego
+                    }
+
                     int year = Integer.parseInt(yearField.getText());
-                    // W przyszłości ID będzie generowała baza danych. Na razie robimy to ręcznie.
-                    int id = (item == null) ? nextId++ : item.getId();
-                    return new MusicItem(id, titleField.getText(), artistField.getText(), year);
+
+                    if (item == null) {
+                        // TRYB: DODAWANIE NOWEGO REKORDU DO BAZY DANYCH
+                        String sql = "INSERT INTO music(title, artist, release_year) VALUES(?,?,?)";
+                        try (Connection conn = DatabaseManager.getConnection();
+                             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                            pstmt.setString(1, titleField.getText());
+                            pstmt.setString(2, artistField.getText());
+                            pstmt.setInt(3, year);
+                            pstmt.executeUpdate();
+
+                            // Pobieramy ID wygenerowane automatycznie przez SQLite
+                            ResultSet generatedKeys = pstmt.getGeneratedKeys();
+                            int newId = generatedKeys.next() ? generatedKeys.getInt(1) : 0;
+                            return new MusicItem(newId, titleField.getText(), artistField.getText(), year);
+                        }
+                    } else {
+                        // TRYB: EDYCJA ISTNIEJĄCEGO REKORDU W BAZIE DANYCH
+                        String sql = "UPDATE music SET title=?, artist=?, release_year=? WHERE id=?";
+                        try (Connection conn = DatabaseManager.getConnection();
+                             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                            pstmt.setString(1, titleField.getText());
+                            pstmt.setString(2, artistField.getText());
+                            pstmt.setInt(3, year);
+                            pstmt.setInt(4, item.getId());
+                            pstmt.executeUpdate();
+
+                            // Zwracamy zaktualizowany obiekt modyfikujący listę podręczną
+                            return new MusicItem(item.getId(), titleField.getText(), artistField.getText(), year);
+                        }
+                    }
                 } catch (NumberFormatException e) {
                     // Zabezpieczenie, jeśli ktoś wpisze litery zamiast roku
                     Alert error = new Alert(Alert.AlertType.ERROR, "Rok wydania musi być liczbą!");
+                    error.setHeaderText("Błąd formatu danych");
                     error.showAndWait();
+                    return null;
+                } catch (SQLException e) {
+                    e.printStackTrace();
                     return null;
                 }
             }
@@ -143,10 +249,10 @@ public class MusicController {
 
         result.ifPresent(newRecord -> {
             if (item == null) {
-                // DODAWANIE: dodajemy nową płytę do listy
+                // DODAWANIE: dodajemy nową płytę do listy widoku
                 musicList.add(newRecord);
             } else {
-                // EDYCJA: podmieniamy dane w istniejącej płycie
+                // EDYCJA: podmieniamy dane bezpośrednio w obiekcie tabeli
                 item.setTitle(newRecord.getTitle());
                 item.setArtist(newRecord.getArtist());
                 item.setReleaseYear(newRecord.getReleaseYear());

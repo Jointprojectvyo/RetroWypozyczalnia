@@ -265,6 +265,13 @@ public class BookController {
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
                 try {
+                    if (titleField.getText().trim().isEmpty() ||
+                            authorField.getText().trim().isEmpty() ||
+                            yearField.getText().trim().isEmpty()) {
+
+                        showError("Błąd: Wszystkie pola (Tytuł, Autor, Rok wydania) muszą być wypełnione!");
+                        return null; // Blokuje zamknięcie okna i przerywa zapis
+                    }
                     // Próba parsowania wprowadzonego roku (Walidacja formatu liczbowego)
                     int year = Integer.parseInt(yearField.getText());
                     int currentYear = Year.now().getValue(); // Pobranie aktualnego roku systemowego
