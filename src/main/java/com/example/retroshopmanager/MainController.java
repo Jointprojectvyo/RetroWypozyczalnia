@@ -17,6 +17,11 @@ public class MainController {
         loadPage("MusicView.fxml");
     }
 
+    @FXML
+    private void showBooksView() {
+        loadPage("BookView.fxml");
+    }
+
     private void loadPage(String page) {
         try {
             Parent root = FXMLLoader.load(getClass().getResource(page));

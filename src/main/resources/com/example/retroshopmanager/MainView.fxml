@@ -11,7 +11,7 @@
             <children>
                 <Button mnemonicParsing="false" onAction="#showMusicView" prefHeight="35.0" prefWidth="130.0" style="-fx-cursor: hand;" text="Muzyka" />
                 <Button disable="true" mnemonicParsing="false" prefHeight="35.0" prefWidth="130.0" text="Filmy" />
-                <Button disable="true" mnemonicParsing="false" prefHeight="35.0" prefWidth="130.0" text="Książki" />
+                <Button mnemonicParsing="false" onAction="#showBooksView" prefHeight="35.0" prefWidth="130.0" style="-fx-cursor: hand;" text="Książki" />
             </children>
             <padding>
                 <Insets bottom="20.0" left="10.0" right="10.0" top="30.0" />
