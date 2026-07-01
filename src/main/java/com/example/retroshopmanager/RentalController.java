@@ -14,6 +14,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.Node;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -21,6 +22,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
@@ -121,22 +123,22 @@ public class RentalController {
         grid.add(dueDatePicker, 1, 2);
         dialog.getDialogPane().setContent(grid);
 
+        Node saveButton = dialog.getDialogPane().lookupButton(saveButtonType);
+        saveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            String error = InputValidator.validateRental(customerBox.getValue(), productBox.getValue(),
+                    dueDatePicker.getValue(), LocalDate.now());
+            if (error != null) {
+                showError(error);
+                event.consume();
+            }
+        });
+
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton != saveButtonType) {
                 return false;
             }
 
-            ProductChoice product = productBox.getValue();
-            if (product == null || product.getQuantity() <= 0) {
-                showError("Wybrany towar nie jest dostepny.");
-                return false;
-            }
-            if (dueDatePicker.getValue() == null || dueDatePicker.getValue().isBefore(LocalDate.now())) {
-                showError("Termin zwrotu nie moze byc data z przeszlosci.");
-                return false;
-            }
-
-            return insertRental(customerBox.getValue(), product, dueDatePicker.getValue());
+            return insertRental(customerBox.getValue(), productBox.getValue(), dueDatePicker.getValue());
         });
 
         Optional<Boolean> result = dialog.showAndWait();
@@ -158,7 +160,13 @@ public class RentalController {
         }
 
         LocalDate today = LocalDate.now();
-        LocalDate dueDate = LocalDate.parse(selectedItem.getDueDate());
+        LocalDate dueDate;
+        try {
+            dueDate = LocalDate.parse(selectedItem.getDueDate());
+        } catch (DateTimeParseException e) {
+            showError("Zapisany termin zwrotu ma niepoprawny format.");
+            return;
+        }
         long lateDays = Math.max(0, ChronoUnit.DAYS.between(dueDate, today));
         double penalty = lateDays * DAILY_PENALTY;
 
@@ -250,6 +258,7 @@ public class RentalController {
                 products.add(new ProductChoice("Ksiazka", rs.getInt("id"), rs.getString("title"), rs.getInt("available_count")));
             }
         } catch (SQLException e) {
+            showError("Nie udało się pobrać dostępnych książek.");
             e.printStackTrace();
         }
     }
@@ -267,6 +276,7 @@ public class RentalController {
                 products.add(new ProductChoice("Film", rs.getInt("id"), rs.getString("title"), rs.getInt("available_count")));
             }
         } catch (SQLException e) {
+            showError("Nie udało się pobrać dostępnych filmów.");
             e.printStackTrace();
         }
     }

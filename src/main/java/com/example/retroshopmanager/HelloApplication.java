@@ -13,8 +13,8 @@ public class HelloApplication extends Application {
         DatabaseManager.initializeDatabase();
 
         FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("MainView.fxml"));
-        Scene scene = new Scene(fxmlLoader.load(), 800, 600);
-        stage.setTitle("Retro Shop Manager");
+        Scene scene = new Scene(fxmlLoader.load(), 930, 620);
+        stage.setTitle("RetroWypożyczalnia");
         stage.setScene(scene);
         stage.show();
     }

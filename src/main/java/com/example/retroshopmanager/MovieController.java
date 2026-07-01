@@ -13,13 +13,13 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.Node;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.Year;
 import java.util.Optional;
 
 public class MovieController {
@@ -30,7 +30,7 @@ public class MovieController {
     @FXML private TableColumn<MovieItem, Integer> yearColumn;
     @FXML private TableColumn<MovieItem, Integer> quantityColumn;
 
-    // Lista w pamieci pozwala szybko odswiezac tabele po zmianach w bazie.
+    // Lista w pamięci odświeża tabelę bez ponownego ładowania całego widoku.
     private final ObservableList<MovieItem> movieList = FXCollections.observableArrayList();
 
     @FXML
@@ -67,7 +67,7 @@ public class MovieController {
                 loadMoviesFromDatabase();
             }
         } catch (SQLException e) {
-            showError("Nie udalo sie pobrac filmow z bazy danych.");
+            showError("Nie udało się pobrać filmów z bazy danych.");
             e.printStackTrace();
         }
     }
@@ -103,7 +103,7 @@ public class MovieController {
     private void handleEditAction() {
         MovieItem selectedItem = movieTable.getSelectionModel().getSelectedItem();
         if (selectedItem == null) {
-            showWarning("Prosze zaznaczyc film do edycji.");
+            showWarning("Proszę zaznaczyć film do edycji.");
             return;
         }
         showMovieDialog(selectedItem);
@@ -113,13 +113,13 @@ public class MovieController {
     private void handleDeleteAction() {
         MovieItem selectedItem = movieTable.getSelectionModel().getSelectedItem();
         if (selectedItem == null) {
-            showWarning("Prosze zaznaczyc film do usuniecia.");
+            showWarning("Proszę zaznaczyć film do usunięcia.");
             return;
         }
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
-                "Czy na pewno chcesz usunac film: " + selectedItem.getTitle() + "?");
-        alert.setHeaderText("Potwierdzenie usuniecia");
+                "Czy na pewno chcesz usunąć film: " + selectedItem.getTitle() + "?");
+        alert.setHeaderText("Potwierdzenie usunięcia");
         Optional<ButtonType> result = alert.showAndWait();
 
         if (result.isPresent() && result.get() == ButtonType.OK) {
@@ -130,7 +130,7 @@ public class MovieController {
                 pstmt.executeUpdate();
                 movieList.remove(selectedItem);
             } catch (SQLException e) {
-                showError("Nie udalo sie usunac filmu.");
+                showError("Nie udało się usunąć filmu.");
                 e.printStackTrace();
             }
         }
@@ -159,9 +159,9 @@ public class MovieController {
             quantityField.setText(String.valueOf(item.getQuantity()));
         }
 
-        grid.add(new Label("Tytul:"), 0, 0);
+        grid.add(new Label("Tytuł:"), 0, 0);
         grid.add(titleField, 1, 0);
-        grid.add(new Label("Rezyser:"), 0, 1);
+        grid.add(new Label("Reżyser:"), 0, 1);
         grid.add(directorField, 1, 1);
         grid.add(new Label("Rok wydania:"), 0, 2);
         grid.add(yearField, 1, 2);
@@ -169,31 +169,35 @@ public class MovieController {
         grid.add(quantityField, 1, 3);
         dialog.getDialogPane().setContent(grid);
 
+        Node saveButton = dialog.getDialogPane().lookupButton(saveButtonType);
+        saveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            String error = InputValidator.validateMovie(titleField.getText(), directorField.getText(),
+                    yearField.getText(), quantityField.getText());
+            if (error != null) {
+                showError(error);
+                event.consume();
+            }
+        });
+
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton != saveButtonType) {
                 return null;
             }
 
             try {
-                int year = Integer.parseInt(yearField.getText());
-                int quantity = Integer.parseInt(quantityField.getText());
-                if (titleField.getText().isBlank() || directorField.getText().isBlank()) {
-                    showError("Tytul i rezyser nie moga byc puste.");
-                    return null;
-                }
-                if (year > Year.now().getValue() || quantity < 0) {
-                    showError("Rok nie moze byc przyszly, a stan nie moze byc ujemny.");
-                    return null;
-                }
+                int year = Integer.parseInt(yearField.getText().trim());
+                int quantity = Integer.parseInt(quantityField.getText().trim());
+                String title = titleField.getText().trim();
+                String director = directorField.getText().trim();
 
                 if (item == null) {
-                    return insertMovie(titleField.getText(), directorField.getText(), year, quantity);
+                    return insertMovie(title, director, year, quantity);
                 }
 
-                updateMovie(item, titleField.getText(), directorField.getText(), year, quantity);
+                updateMovie(item, title, director, year, quantity);
                 return item;
             } catch (NumberFormatException e) {
-                showError("Rok i stan musza byc liczbami.");
+                showError("Rok i stan muszą być liczbami.");
                 return null;
             }
         });
@@ -221,7 +225,7 @@ public class MovieController {
             int id = keys.next() ? keys.getInt(1) : 0;
             return new MovieItem(id, title, director, year, quantity);
         } catch (SQLException e) {
-            showError("Nie udalo sie zapisac filmu.");
+            showError("Nie udało się zapisać filmu.");
             e.printStackTrace();
             return null;
         }
@@ -243,7 +247,7 @@ public class MovieController {
             item.setReleaseYear(year);
             item.setQuantity(quantity);
         } catch (SQLException e) {
-            showError("Nie udalo sie zaktualizowac filmu.");
+            showError("Nie udało się zaktualizować filmu.");
             e.printStackTrace();
         }
     }
@@ -256,7 +260,7 @@ public class MovieController {
 
     private void showError(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR, message);
-        alert.setHeaderText("Blad");
+        alert.setHeaderText("Błąd");
         alert.showAndWait();
     }
 }

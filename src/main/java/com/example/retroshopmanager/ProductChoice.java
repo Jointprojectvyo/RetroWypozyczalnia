@@ -20,6 +20,6 @@ public class ProductChoice {
 
     @Override
     public String toString() {
-        return type + ": " + title + " (stan: " + quantity + ")";
+        return type + ": " + title + " (dostępne: " + quantity + ")";
     }
 }

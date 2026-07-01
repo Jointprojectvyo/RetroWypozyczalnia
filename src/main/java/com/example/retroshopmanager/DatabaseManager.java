@@ -6,14 +6,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class DatabaseManager {
-    // Nazwa pliku bazy danych, ktory pojawi sie w folderze projektu.
+    // Plik bazy danych SQLite znajduje się w katalogu głównym projektu.
     private static final String URL = "jdbc:sqlite:retroshop.db";
 
     public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(URL);
     }
 
-    // Metoda inicjalizacji bazy danych (tworzenie tabel).
+    // Inicjalizacja tworzy tabele wymagane przez moduły aplikacji.
     public static void initializeDatabase() {
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
             String createBooksTable = "CREATE TABLE IF NOT EXISTS books (" +
@@ -65,8 +65,6 @@ public class DatabaseManager {
                     "FOREIGN KEY(customer_id) REFERENCES customers(id)" +
                     ");";
             stmt.execute(createRentalsTable);
-
-
         } catch (SQLException e) {
             e.printStackTrace();
         }

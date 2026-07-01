@@ -13,13 +13,38 @@ public class MainController {
     private BorderPane mainBorderPane;
 
     @FXML
+    public void initialize() {
+        loadPage("StartView.fxml");
+    }
+
+    @FXML
+    private void showStartView() {
+        loadPage("StartView.fxml");
+    }
+
+    @FXML
     private void showMusicView() {
         loadPage("MusicView.fxml");
     }
 
     @FXML
+    private void showMoviesView() {
+        loadPage("MovieView.fxml");
+    }
+
+    @FXML
     private void showBooksView() {
         loadPage("BookView.fxml");
+    }
+
+    @FXML
+    private void showCustomersView() {
+        loadPage("CustomerView.fxml");
+    }
+
+    @FXML
+    private void showRentalsView() {
+        loadPage("RentalView.fxml");
     }
 
     private void loadPage(String page) {

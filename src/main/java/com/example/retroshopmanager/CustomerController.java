@@ -13,6 +13,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.Node;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -29,7 +30,7 @@ public class CustomerController {
     @FXML private TableColumn<CustomerItem, String> phoneColumn;
     @FXML private TableColumn<CustomerItem, String> emailColumn;
 
-    // Glowna kolekcja klientow przechowywana w pamieci interfejsu.
+    // Główna kolekcja klientów przechowywana w pamięci interfejsu.
     private final ObservableList<CustomerItem> customerList = FXCollections.observableArrayList();
 
     @FXML
@@ -61,7 +62,7 @@ public class CustomerController {
                 ));
             }
         } catch (SQLException e) {
-            showError("Nie udalo sie pobrac klientow.");
+            showError("Nie udało się pobrać klientów.");
             e.printStackTrace();
         }
     }
@@ -75,7 +76,7 @@ public class CustomerController {
     private void handleEditAction() {
         CustomerItem selectedItem = customerTable.getSelectionModel().getSelectedItem();
         if (selectedItem == null) {
-            showWarning("Prosze zaznaczyc klienta do edycji.");
+            showWarning("Proszę zaznaczyć klienta do edycji.");
             return;
         }
         showCustomerDialog(selectedItem);
@@ -85,13 +86,13 @@ public class CustomerController {
     private void handleDeleteAction() {
         CustomerItem selectedItem = customerTable.getSelectionModel().getSelectedItem();
         if (selectedItem == null) {
-            showWarning("Prosze zaznaczyc klienta do usuniecia.");
+            showWarning("Proszę zaznaczyć klienta do usunięcia.");
             return;
         }
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
-                "Czy na pewno chcesz usunac klienta: " + selectedItem.getFullName() + "?");
-        alert.setHeaderText("Potwierdzenie usuniecia");
+                "Czy na pewno chcesz usunąć klienta: " + selectedItem.getFullName() + "?");
+        alert.setHeaderText("Potwierdzenie usunięcia");
         Optional<ButtonType> result = alert.showAndWait();
 
         if (result.isPresent() && result.get() == ButtonType.OK) {
@@ -102,7 +103,7 @@ public class CustomerController {
                 pstmt.executeUpdate();
                 customerList.remove(selectedItem);
             } catch (SQLException e) {
-                showError("Nie udalo sie usunac klienta. Sprawdz, czy nie ma wypozyczen.");
+                showError("Nie udało się usunąć klienta. Sprawdź, czy nie ma wypożyczeń.");
                 e.printStackTrace();
             }
         }
@@ -131,7 +132,7 @@ public class CustomerController {
             emailField.setText(item.getEmail());
         }
 
-        grid.add(new Label("Imie:"), 0, 0);
+        grid.add(new Label("Imię:"), 0, 0);
         grid.add(firstNameField, 1, 0);
         grid.add(new Label("Nazwisko:"), 0, 1);
         grid.add(lastNameField, 1, 1);
@@ -141,20 +142,30 @@ public class CustomerController {
         grid.add(emailField, 1, 3);
         dialog.getDialogPane().setContent(grid);
 
+        Node saveButton = dialog.getDialogPane().lookupButton(saveButtonType);
+        saveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            String error = InputValidator.validateCustomer(firstNameField.getText(), lastNameField.getText(),
+                    phoneField.getText(), emailField.getText());
+            if (error != null) {
+                showError(error);
+                event.consume();
+            }
+        });
+
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton != saveButtonType) {
                 return null;
             }
-            if (firstNameField.getText().isBlank() || lastNameField.getText().isBlank()) {
-                showError("Imie i nazwisko sa wymagane.");
-                return null;
-            }
+            String firstName = firstNameField.getText().trim();
+            String lastName = lastNameField.getText().trim();
+            String phone = phoneField.getText().trim();
+            String email = emailField.getText().trim();
 
             if (item == null) {
-                return insertCustomer(firstNameField.getText(), lastNameField.getText(), phoneField.getText(), emailField.getText());
+                return insertCustomer(firstName, lastName, phone, email);
             }
 
-            updateCustomer(item, firstNameField.getText(), lastNameField.getText(), phoneField.getText(), emailField.getText());
+            updateCustomer(item, firstName, lastName, phone, email);
             return item;
         });
 
@@ -181,7 +192,7 @@ public class CustomerController {
             }
             return new CustomerItem(nextId, firstName, lastName, phone, email);
         } catch (SQLException e) {
-            showError("Nie udalo sie zapisac klienta.");
+            showError("Nie udało się zapisać klienta.");
             e.printStackTrace();
             return null;
         }
@@ -218,7 +229,7 @@ public class CustomerController {
             item.setPhone(phone);
             item.setEmail(email);
         } catch (SQLException e) {
-            showError("Nie udalo sie zaktualizowac klienta.");
+            showError("Nie udało się zaktualizować klienta.");
             e.printStackTrace();
         }
     }
@@ -231,7 +242,7 @@ public class CustomerController {
 
     private void showError(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR, message);
-        alert.setHeaderText("Blad");
+        alert.setHeaderText("Błąd");
         alert.showAndWait();
     }
 }
