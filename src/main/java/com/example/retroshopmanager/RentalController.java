@@ -40,7 +40,6 @@ public class RentalController {
     @FXML private TableColumn<RentalItem, Double> penaltyColumn;
     @FXML private TableColumn<RentalItem, String> statusColumn;
 
-    // Kolekcja w pamieci ulatwia filtrowanie i odswiezanie dziennika.
     private final ObservableList<RentalItem> rentalList = FXCollections.observableArrayList();
 
     @FXML
@@ -137,7 +136,6 @@ public class RentalController {
             if (dialogButton != saveButtonType) {
                 return false;
             }
-
             return insertRental(customerBox.getValue(), productBox.getValue(), dueDatePicker.getValue());
         });
 
@@ -242,6 +240,7 @@ public class RentalController {
         ObservableList<ProductChoice> products = FXCollections.observableArrayList();
         loadBookChoices(products);
         loadMovieChoices(products);
+        loadMusicChoices(products);
         return products;
     }
 
@@ -277,6 +276,24 @@ public class RentalController {
             }
         } catch (SQLException e) {
             showError("Nie udało się pobrać dostępnych filmów.");
+            e.printStackTrace();
+        }
+    }
+
+    private void loadMusicChoices(ObservableList<ProductChoice> products) {
+        String sql = "SELECT m.id, m.title, " +
+                "(1 - COUNT(r.id)) AS available_count FROM music m " +
+                "LEFT JOIN rentals r ON r.product_type = 'Muzyka' AND r.product_id = m.id AND r.status = 'Aktywne' " +
+                "GROUP BY m.id, m.title HAVING available_count > 0";
+
+        try (Connection conn = DatabaseManager.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                products.add(new ProductChoice("Muzyka", rs.getInt("id"), rs.getString("title"), rs.getInt("available_count")));
+            }
+        } catch (SQLException e) {
+            showError("Nie udało się pobrać dostępnych płyt muzycznych.");
             e.printStackTrace();
         }
     }

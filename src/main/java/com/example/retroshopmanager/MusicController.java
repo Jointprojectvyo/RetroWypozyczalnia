@@ -2,6 +2,7 @@ package com.example.retroshopmanager;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
@@ -16,29 +17,32 @@ public class MusicController {
     @FXML private TableColumn<MusicItem, String> titleColumn;
     @FXML private TableColumn<MusicItem, String> artistColumn;
     @FXML private TableColumn<MusicItem, Integer> yearColumn;
+    @FXML private TableColumn<MusicItem, String> genreColumn;
+    @FXML private ComboBox<String> filterComboBox;
 
-    // Lista przechowująca płyty – teraz synchronizowana z bazą danych
-    private ObservableList<MusicItem> musicList = FXCollections.observableArrayList();
+    private ObservableList<MusicItem> musicMasterList = FXCollections.observableArrayList();
+    private FilteredList<MusicItem> filteredMusicList;
+    private final ObservableList<String> genresList = FXCollections.observableArrayList("Rock", "Pop", "Jazz", "Inne");
 
     @FXML
     public void initialize() {
-        // Powiązanie kolumn z polami w klasie MusicItem
         idColumn.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("id"));
         titleColumn.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("title"));
         artistColumn.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("artist"));
         yearColumn.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("releaseYear"));
+        genreColumn.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("genre"));
 
-        // Ładowanie danych z bazy danych SQLite zamiast sztywno wpisanych linii
+        filterComboBox.setItems(FXCollections.observableArrayList("Wszystkie", "Rock", "Pop", "Jazz", "Inne"));
+        filterComboBox.getSelectionModel().selectFirst();
+
         loadMusicFromDatabase();
 
-        musicTable.setItems(musicList);
+        filteredMusicList = new FilteredList<>(musicMasterList, p -> true);
+        musicTable.setItems(filteredMusicList);
     }
 
-    /**
-     * Pobiera wszystkie rekordy z tabeli 'music' i zapisuje je w pamięci RAM (musicList).
-     */
     private void loadMusicFromDatabase() {
-        musicList.clear();
+        musicMasterList.clear();
         String sql = "SELECT * FROM music";
 
         try (Connection conn = DatabaseManager.getConnection();
@@ -46,35 +50,30 @@ public class MusicController {
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
-                musicList.add(new MusicItem(
+                musicMasterList.add(new MusicItem(
                         rs.getInt("id"),
                         rs.getString("title"),
                         rs.getString("artist"),
-                        rs.getInt("release_year")
+                        rs.getInt("release_year"),
+                        rs.getString("genre")
                 ));
             }
 
-            // Jeśli baza danych jest całkowicie pusta, wstawiamy domyślne dane startowe
-            if (musicList.isEmpty()) {
+            if (musicMasterList.isEmpty()) {
                 insertDefaultMusic();
                 loadMusicFromDatabase();
             }
         } catch (SQLException e) {
-            Alert alert = new Alert(Alert.AlertType.ERROR, "Błąd: Nie udało się pobrać muzyki z bazy danych!");
-            alert.showAndWait();
             e.printStackTrace();
         }
     }
 
-    /**
-     * Zasila bazę danych domyślnymi rekordami muzycznymi przy pierwszym uruchomieniu.
-     */
     private void insertDefaultMusic() {
-        String sql = "INSERT INTO music(title, artist, release_year) VALUES(?,?,?)";
+        String sql = "INSERT INTO music(title, artist, release_year, genre) VALUES(?,?,?,?)";
         String[][] defaultAlbums = {
-                {"The Dark Side of the Moon", "Pink Floyd", "1973"},
-                {"Abbey Road", "The Beatles", "1969"},
-                {"Rumours", "Fleetwood Mac", "1977"}
+                {"Thriller", "Michael Jackson", "1982", "Pop"},
+                {"A Kind of Magic", "Queen", "1986", "Rock"},
+                {"The Dark Side of the Moon", "Pink Floyd", "1973", "Rock"}
         };
 
         try (Connection conn = DatabaseManager.getConnection();
@@ -83,6 +82,7 @@ public class MusicController {
                 pstmt.setString(1, album[0]);
                 pstmt.setString(2, album[1]);
                 pstmt.setInt(3, Integer.parseInt(album[2]));
+                pstmt.setString(4, album[3]);
                 pstmt.executeUpdate();
             }
         } catch (SQLException e) {
@@ -91,23 +91,30 @@ public class MusicController {
     }
 
     @FXML
+    private void handleFilterAction() {
+        String selectedFilter = filterComboBox.getValue();
+        if (filteredMusicList == null) return;
+
+        filteredMusicList.setPredicate(music -> {
+            if (selectedFilter == null || selectedFilter.equals("Wszystkie")) {
+                return true;
+            }
+            return selectedFilter.equals(music.getGenre());
+        });
+    }
+
+    @FXML
     private void handleAddAction() {
-        // Wywołujemy nasze okienko z pustymi polami (null = nowy element)
         showMusicDialog(null);
     }
 
     @FXML
     private void handleEditAction() {
-        // Pobieramy zaznaczoną płytę z tabeli
         MusicItem selectedItem = musicTable.getSelectionModel().getSelectedItem();
-
         if (selectedItem != null) {
-            // Wywołujemy okienko wypełnione danymi zaznaczonej płyty
             showMusicDialog(selectedItem);
         } else {
-            // Jeśli użytkownik nic nie zaznaczył, pokazujemy ostrzeżenie
-            Alert alert = new Alert(Alert.AlertType.WARNING, "Proszę zaznaczyć płytę do edycji w tabeli.");
-            alert.setHeaderText("Brak zaznaczenia");
+            Alert alert = new Alert(Alert.AlertType.WARNING, "Proszę zaznaczyć płytę do edycji.");
             alert.showAndWait();
         }
     }
@@ -115,63 +122,49 @@ public class MusicController {
     @FXML
     private void handleDeleteAction() {
         MusicItem selectedItem = musicTable.getSelectionModel().getSelectedItem();
-
         if (selectedItem != null) {
-            // Pytamy o potwierdzenie usunięcia
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Czy na pewno chcesz usunąć: " + selectedItem.getTitle() + "?");
-            alert.setHeaderText("Potwierdzenie usunięcia");
-
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Usunąć: " + selectedItem.getTitle() + "?");
             Optional<ButtonType> result = alert.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
-                // Usuwanie pozycji bezpośrednio z bazy danych przy użyciu SQL DELETE
                 String sql = "DELETE FROM music WHERE id = ?";
                 try (Connection conn = DatabaseManager.getConnection();
                      PreparedStatement pstmt = conn.prepareStatement(sql)) {
                     pstmt.setInt(1, selectedItem.getId());
                     pstmt.executeUpdate();
-
-                    // Usuwamy z pamięci podręcznej UI
-                    musicList.remove(selectedItem);
+                    musicMasterList.remove(selectedItem);
                 } catch (SQLException e) {
-                    Alert errorAlert = new Alert(Alert.AlertType.ERROR, "Błąd: Nie udało się usunąć pozycji z bazy danych.");
-                    errorAlert.showAndWait();
                     e.printStackTrace();
                 }
             }
         } else {
             Alert alert = new Alert(Alert.AlertType.WARNING, "Proszę zaznaczyć płytę do usunięcia.");
-            alert.setHeaderText("Brak zaznaczenia");
             alert.showAndWait();
         }
     }
 
-    // --- METODA POMOCNICZA: GENEROWANIE OKNA FORMULARZA ---
     private void showMusicDialog(MusicItem item) {
         Dialog<MusicItem> dialog = new Dialog<>();
         dialog.setTitle(item == null ? "Dodaj nową płytę" : "Edytuj płytę");
-        dialog.setHeaderText("Wprowadź dane albumu muzycznego");
 
-        // Przyciski Zapisz i Anuluj
         ButtonType saveButtonType = new ButtonType("Zapisz", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
 
-        // Układ pól tekstowych
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
 
         TextField titleField = new TextField();
-        titleField.setPromptText("Tytuł");
         TextField artistField = new TextField();
-        artistField.setPromptText("Wykonawca");
         TextField yearField = new TextField();
-        yearField.setPromptText("Rok np. 1980");
 
-        // Jeśli to edycja (item nie jest nullem), wypełniamy pola obecnymi danymi
+        ComboBox<String> genreBox = new ComboBox<>(genresList);
+        genreBox.getSelectionModel().selectFirst();
+
         if (item != null) {
             titleField.setText(item.getTitle());
             artistField.setText(item.getArtist());
             yearField.setText(String.valueOf(item.getReleaseYear()));
+            genreBox.getSelectionModel().select(item.getGenre());
         }
 
         grid.add(new Label("Tytuł:"), 0, 0);
@@ -180,60 +173,52 @@ public class MusicController {
         grid.add(artistField, 1, 1);
         grid.add(new Label("Rok wydania:"), 0, 2);
         grid.add(yearField, 1, 2);
+        grid.add(new Label("Gatunek:"), 0, 3);
+        grid.add(genreBox, 1, 3);
 
         dialog.getDialogPane().setContent(grid);
 
-        // Konwersja kliknięcia "Zapisz" na operację bazodanową i walidacja danych
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
                 try {
-                    // OBSŁUGA WYJĄTKÓW / WALIDACJA: Sprawdzenie pustych pól tekstowych
-                    if (titleField.getText().trim().isEmpty() ||
-                            artistField.getText().trim().isEmpty() ||
-                            yearField.getText().trim().isEmpty()) {
-
-                        Alert emptyAlert = new Alert(Alert.AlertType.ERROR, "Błąd: Wszystkie pola muszą być wypełnione!");
-                        emptyAlert.setHeaderText("Błąd walidacji");
-                        emptyAlert.showAndWait();
-                        return null; // Zwrócenie null przerywa proces i nie zamyka okna modalnego
+                    if (titleField.getText().trim().isEmpty() || artistField.getText().trim().isEmpty() || yearField.getText().trim().isEmpty()) {
+                        Alert alert = new Alert(Alert.AlertType.ERROR, "Wszystkie pola muszą być wypełnione!");
+                        alert.showAndWait();
+                        return null;
                     }
-
                     int year = Integer.parseInt(yearField.getText());
+                    String genre = genreBox.getValue();
 
                     if (item == null) {
-                        // TRYB: DODAWANIE NOWEGO REKORDU DO BAZY DANYCH
-                        String sql = "INSERT INTO music(title, artist, release_year) VALUES(?,?,?)";
+                        String sql = "INSERT INTO music(title, artist, release_year, genre) VALUES(?,?,?,?)";
                         try (Connection conn = DatabaseManager.getConnection();
                              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                             pstmt.setString(1, titleField.getText());
                             pstmt.setString(2, artistField.getText());
                             pstmt.setInt(3, year);
+                            pstmt.setString(4, genre);
                             pstmt.executeUpdate();
 
-                            // Pobieramy ID wygenerowane automatycznie przez SQLite
-                            ResultSet generatedKeys = pstmt.getGeneratedKeys();
-                            int newId = generatedKeys.next() ? generatedKeys.getInt(1) : 0;
-                            return new MusicItem(newId, titleField.getText(), artistField.getText(), year);
+                            ResultSet keys = pstmt.getGeneratedKeys();
+                            int newId = keys.next() ? keys.getInt(1) : 0;
+                            return new MusicItem(newId, titleField.getText(), artistField.getText(), year, genre);
                         }
                     } else {
-                        // TRYB: EDYCJA ISTNIEJĄCEGO REKORDU W BAZIE DANYCH
-                        String sql = "UPDATE music SET title=?, artist=?, release_year=? WHERE id=?";
+                        String sql = "UPDATE music SET title=?, artist=?, release_year=?, genre=? WHERE id=?";
                         try (Connection conn = DatabaseManager.getConnection();
                              PreparedStatement pstmt = conn.prepareStatement(sql)) {
                             pstmt.setString(1, titleField.getText());
                             pstmt.setString(2, artistField.getText());
                             pstmt.setInt(3, year);
-                            pstmt.setInt(4, item.getId());
+                            pstmt.setString(4, genre);
+                            pstmt.setInt(5, item.getId());
                             pstmt.executeUpdate();
 
-                            // Zwracamy zaktualizowany obiekt modyfikujący listę podręczną
-                            return new MusicItem(item.getId(), titleField.getText(), artistField.getText(), year);
+                            return new MusicItem(item.getId(), titleField.getText(), artistField.getText(), year, genre);
                         }
                     }
                 } catch (NumberFormatException e) {
-                    // Zabezpieczenie, jeśli ktoś wpisze litery zamiast roku
                     Alert error = new Alert(Alert.AlertType.ERROR, "Rok wydania musi być liczbą!");
-                    error.setHeaderText("Błąd formatu danych");
                     error.showAndWait();
                     return null;
                 } catch (SQLException e) {
@@ -244,19 +229,16 @@ public class MusicController {
             return null;
         });
 
-        // Oczekiwanie na akcję użytkownika (kliknięcie w oknie)
         Optional<MusicItem> result = dialog.showAndWait();
-
         result.ifPresent(newRecord -> {
             if (item == null) {
-                // DODAWANIE: dodajemy nową płytę do listy widoku
-                musicList.add(newRecord);
+                musicMasterList.add(newRecord);
             } else {
-                // EDYCJA: podmieniamy dane bezpośrednio w obiekcie tabeli
                 item.setTitle(newRecord.getTitle());
                 item.setArtist(newRecord.getArtist());
                 item.setReleaseYear(newRecord.getReleaseYear());
-                musicTable.refresh(); // Odświeżenie widoku tabeli
+                item.setGenre(newRecord.getGenre());
+                musicTable.refresh();
             }
         });
     }
